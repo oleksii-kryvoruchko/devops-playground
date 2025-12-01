@@ -19,7 +19,7 @@ I wanted to create the whole flow from committing to the repository and automati
 This is a learning experiment that helped me understand modern DevOps tools and how their interconnectivity.
 
 ## CI Pipeline
-Automated Build, Test, and Deployment Preparation with GitHub Actions.
+Automated Build, Test, and Deployment Preparation with GitHub Actions.\
 The [workflow](./.github/workflows/contiuous-integration.yaml) is triggered by pushes and pull requests to the main branch, ignoring changes to the documentation. .
 
 ### Trigger conditions:
@@ -34,7 +34,7 @@ The [workflow](./.github/workflows/contiuous-integration.yaml) is triggered by p
 - **<ins>update-chart</ins>**: On successful job completion, updates the Helm chart with the new image tag, triggering ArgoCD to start the CD process
 
 ## GitOps Workflow
-Automated Deployment and Synchronization with ArgoCD.
+Automated Deployment and Synchronization with ArgoCD.\
 The​‍​‌‍​‍‌​‍​‌‍​‍‌ ArgoCD Application keeps an eye on the Git repository all the time and along with this, automatically synchronizes the Kubernetes cluster with Helm charts according to [argocd-load-tester-app.yaml](infrastructure/argocd/argocd-load-tester-app.yaml) configuration file.
 
 ### Process
@@ -47,29 +47,28 @@ The​‍​‌‍​‍‌​‍​‌‍​‍‌ ArgoCD Application keeps an 
 
 ## Monitoring & Auto-scaling
 ### Monitoring Stack
-Comprehensive observability stack offering real-time metrics collection and visualization.
-kube-prometheus-stack set up with Helm. For the load-tester application, we set up a ServiceMonitor that configures Prometheus to collect metrics from the application pods, which allows to visualise the data in Grafana.
+Full​‍​‌‍​‍‌​‍​‌‍​‍‌ observability-layer with the ability to collect live metrics and visualize them.\
+Installed with Helm, kube-prometheus-stack gives the monitoring ability to the whole cluster.
 
 **Data Flow**
 ```mermaid
 flowchart LR
     A[Node Exporter] -->|node metrics| B[Prometheus]
-    C[kube-state-metrics] -->|k8s objects| B
+    C[kube-state-metrics] -->|cluster state| B
     B -->|storage & queries| E[Grafana]
 ```
 
-
 ### Load Generation & HPA
-Automated scaling based on real-time application metrics through Horizontal Pod Autoscaler.
+Automated scaling based on real-time application metrics through Horizontal Pod Autoscaler.\
 
-### Application Design
+#### Application Design
 The test application is a C web server combined with stress-ng for resource load testing:
 Key endpoints:
 - /cpu - CPU-intensive operation
 - /memory - Memory allocation test
 - /stop - Terminate active tests
 
-### HPA Configuration
+#### HPA Configuration
 Horizontal Pod Autoscaler configured via values.yaml:
 ```yaml
 autoscaling:
