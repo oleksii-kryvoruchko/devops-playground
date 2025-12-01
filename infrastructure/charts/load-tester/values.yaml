@@ -2,7 +2,7 @@ replicaCount: 2
 
 image:
   repository: ghcr.io/oleksii-kryvoruchko/devops-playground
-  tag: bc52e449a338710d4feb65bc57b5f1b32d19e1be
+  tag: d004c560f396a79b9a66c9a5057c8ef15e521a62
   pullPolicy: IfNotPresent
 
 ingress:
