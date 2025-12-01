@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore: [ "docs/**", "*.md", ".github/**" ]
+  pull_request:
+    branches: [ main ]
+    paths-ignore: [ "docs/**", "*.md", ".github/**" ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      src: ${{ steps.changes.outputs.src }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - uses: dorny/paths-filter@v2
+      id: changes
+      with:
+        filters: |
+          src:
+            - 'src/**'
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Lint Dockerfile
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: Dockerfile
+    
+    - name: Lint Helm Chart
+      uses: helm/chart-testing-action@v2.3.1
+      with:
+        command: lint
+        config: infrastructure/charts/ct.yaml
+
+  build:
+    runs-on: ubuntu-latest
+    needs: lint
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to GHCR
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: |
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  test:
+    runs-on: ubuntu-latest
+    needs: [ changes, build ]
+    if: ${{ needs.changes.outputs.src == 'true' }}
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Build test container
+      run: docker build -t load-tester:local .
+    
+    - name: Run container tests
+      run: |
+        docker run -d --name test-container -p 8080:8080 load-tester:local
+        sleep 5
+        
+        curl -f http://localhost:8080/ || exit 1
+        
+        docker stop test-container
+        docker rm test-container
+
+  update-helm:
+    runs-on: ubuntu-latest
+    needs: build 
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Debug file structure
+      run: |
+        find . -name "*.yaml"
+
+    - name: Update Helm chart version
+      run: |
+        sed -i "s/tag:.*/tag: ${{ github.sha }}/" infrastructure/charts/load-tester/values.yaml
+    
+    - name: Commit and push changes
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add infrastructure/charts/load-tester/values.yaml
+        git commit -m "CI: Update image tag to ${{ github.sha }}"
+        git push

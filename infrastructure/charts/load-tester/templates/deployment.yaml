@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: load-tester
+  labels:
+    app: load-tester
+spec:
+  revisionHistoryLimit: 2 
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: load-tester
+  template:
+    metadata:
+      labels:
+        app: load-tester
+    spec:
+      imagePullSecrets:
+      - name: ghcr-auth
+      containers:
+      - name: load-tester
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.service.port }} 
+        resources:
+          requests:
+            memory: {{ .Values.resources.requests.memory }} 
+            cpu: {{ .Values.resources.requests.cpu }} 
+          limits:
+            memory: {{ .Values.resources.limits.memory }} 
+            cpu: {{ .Values.resources.limits.cpu }} 
